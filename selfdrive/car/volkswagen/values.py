@@ -57,6 +57,7 @@ class CAR:
   AUDI_A3 = "AUDI A3"
   SKODA_KODIAQ = "SKODA KODIAQ"
   SKODA_SCALA = "SKODA SCALA"
+  SEAT_ATECA = "SEAT ATECA"
 
 MQB_CARS = {
   CAR.GOLF,                 # Chassis AU, 2013-2020, includes Golf, Alltrack, Sportwagen, GTI, GTI TCR, GTE, GTD, Clubsport, Golf R, e-Golf
@@ -65,7 +66,7 @@ MQB_CARS = {
   CAR.AUDI_A3,              # Chassis 8V, 2013-2019, includes A3, A3 e-tron, A3 g-tron, S3, RS3
   CAR.SKODA_KODIAQ,         # Chassis 5N, 2016-2020, includes Kodiaq
   CAR.SKODA_SCALA,          # Chassis NW, 2019-2021, includes Scala
-
+  CAR.SEAT_ATECA,           # Chassis ??, 2016-2021, includes Ateca
 }
 
 # During MQB FPv2 testing, ignore all traditional CAN fingerprints
@@ -264,6 +265,26 @@ FW_VERSIONS = {
       b'\xf1\x873Q0980654R \xf1\x890460\xf1\x82\0046s041313',  # 2020 Skoda Scala
     ],
   },
+  CAR.SEAT_ATECA: {
+    (Ecu.engine, 0x7e0, None): [
+      b'\xf1\x8704E906027KA\xf1\x893749',  # 2018 Seat Ateca (?CZEA?)
+    ],
+    (Ecu.transmission, 0x7e1, None): [
+      b'\xf1\x870D9300014S \xf1\x895202',  # 2018 Seat Ateca (?DQ250?)
+    ],
+    (Ecu.srs, 0x715, None): [
+      b'\xf1\x873Q0959655BH\xf1\x890703\xf1\x82\0161212001211001305121211052900',  # 2018 Seat Ateca
+    ],
+    (Ecu.eps, 0x712, None): [
+      b'\xf1\x873Q0909144L \xf1\x895081\xf1\x82\00571N60511A1',  # 2018 Seat Ateca
+    ],
+    (Ecu.fwdRadar, 0x757, None): [
+      b'\xf1\x872Q0907572M \xf1\x890233',  # 2018 Seat Ateca
+    ],
+    (Ecu.fwdCamera, 0x74f, None): [
+      b'\xf1\x873QD980654  \xf1\x891272\xf1\x82\00441041118',  # 2018 Seat Ateca
+    ],
+  },
 }
 
 DBC = {
@@ -273,4 +294,5 @@ DBC = {
   CAR.AUDI_A3: dbc_dict('vw_mqb_2010', None),
   CAR.SKODA_KODIAQ: dbc_dict('vw_mqb_2010', None),
   CAR.SKODA_SCALA: dbc_dict('vw_mqb_2010', None),
+  CAR.SEAT_ATECA: dbc_dict('vw_mqb_2010', None),
 }
