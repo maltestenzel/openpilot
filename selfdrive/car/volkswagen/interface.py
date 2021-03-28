@@ -79,11 +79,6 @@ class CarInterface(CarInterfaceBase):
         ret.mass = 1192 + STD_CARGO_KG
         ret.wheelbase = 2.65
 
-      elif candidate == CAR.SEAT_ATECA:
-        # Average of min and max Seat Ateca weight
-        ret.mass = 1476 + STD_CARGO_KG
-        ret.wheelbase = 2.63
-
       ret.centerToFront = ret.wheelbase * 0.45
 
     ret.enableCamera = True  # Stock camera detection doesn't apply to VW
