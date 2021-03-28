@@ -55,7 +55,7 @@ static void ui_init_vision(UIState *s) {
 
 void ui_init(UIState *s) {
   s->sm = new SubMaster({
-    "modelV2", "controlsState", "uiLayoutState", "liveCalibration", "radarState", "deviceState", "liveLocationKalman",
+    "modelV2", "controlsState", "liveCalibration", "radarState", "deviceState", "liveLocationKalman",
     "pandaState", "carParams", "driverState", "driverMonitoringState", "sensorEvents", "carState", "ubloxGnss",
 #ifdef QCOM2
     "roadCameraState",
@@ -82,14 +82,15 @@ static int get_path_length_idx(const cereal::ModelDataV2::XYZTData::Reader &line
   return max_idx;
 }
 
-static void update_lead(UIState *s, const cereal::RadarState::Reader &radar_state,
-                        const cereal::ModelDataV2::XYZTData::Reader &line, int idx) {
-  auto &lead_data = s->scene.lead_data[idx];
-  lead_data = (idx == 0) ? radar_state.getLeadOne() : radar_state.getLeadTwo();
-  if (lead_data.getStatus()) {
-    const int path_idx = get_path_length_idx(line, lead_data.getDRel());
-    // negative because radarState uses left positive convention
-    calib_frame_to_full_frame(s, lead_data.getDRel(), -lead_data.getYRel(), line.getZ()[path_idx] + 1.22, &s->scene.lead_vertices[idx]);
+static void update_leads(UIState *s, const cereal::RadarState::Reader &radar_state, std::optional<cereal::ModelDataV2::XYZTData::Reader> line) {
+  for (int i = 0; i < 2; ++i) {
+    auto lead_data = (i == 0) ? radar_state.getLeadOne() : radar_state.getLeadTwo();
+    if (lead_data.getStatus()) {
+      float z = line ? (*line).getZ()[get_path_length_idx(*line, lead_data.getDRel())] : 0.0;
+      // negative because radarState uses left positive convention
+      calib_frame_to_full_frame(s, lead_data.getDRel(), -lead_data.getYRel(), z + 1.22, &s->scene.lead_vertices[i]);
+    }
+    s->scene.lead_data[i] = lead_data;
   }
 }
 
@@ -151,10 +152,11 @@ static void update_sockets(UIState *s) {
     scene.car_state = sm["carState"].getCarState();
   }
   if (sm.updated("radarState")) {
-    auto radar_state = sm["radarState"].getRadarState();
-    const auto line = sm["modelV2"].getModelV2().getPosition();
-    update_lead(s, radar_state, line, 0);
-    update_lead(s, radar_state, line, 1);
+    std::optional<cereal::ModelDataV2::XYZTData::Reader> line;
+    if (sm.rcv_frame("modelV2") > 0) {
+      line = sm["modelV2"].getModelV2().getPosition();
+    }
+    update_leads(s, sm["radarState"].getRadarState(), line);
   }
   if (sm.updated("liveCalibration")) {
     scene.world_objects_visible = true;
@@ -175,11 +177,6 @@ static void update_sockets(UIState *s) {
   }
   if (sm.updated("modelV2")) {
     update_model(s, sm["modelV2"].getModelV2());
-  }
-  if (sm.updated("uiLayoutState")) {
-    auto data = sm["uiLayoutState"].getUiLayoutState();
-    s->active_app = data.getActiveApp();
-    s->sidebar_collapsed = data.getSidebarCollapsed();
   }
   if (sm.updated("deviceState")) {
     scene.deviceState = sm["deviceState"].getDeviceState();
@@ -235,7 +232,9 @@ static void update_sockets(UIState *s) {
   }
 #ifdef QCOM2
   if (sm.updated("roadCameraState")) {
-    scene.light_sensor = std::clamp<float>(1023.0 - sm["roadCameraState"].getRoadCameraState().getIntegLines(), 0.0, 1023.0);
+    auto camera_state = sm["roadCameraState"].getRoadCameraState();
+    float gain = camera_state.getGainFrac() * (camera_state.getGlobalGain() > 100 ? 2.5 : 1.0) / 10.0;
+    scene.light_sensor = std::clamp<float>((1023.0 / 1757.0) * (1757.0 - camera_state.getIntegLines()) * (1.0 - gain), 0.0, 1023.0);
   }
 #endif
   scene.started = scene.deviceState.getStarted() || scene.driver_view;
@@ -336,13 +335,12 @@ static void update_status(UIState *s) {
       s->scene.started_frame = s->sm->frame;
 
       read_param(&s->scene.is_rhd, "IsRHD");
-      s->active_app = cereal::UiLayoutState::App::NONE;
+      read_param(&s->scene.end_to_end, "EndToEndToggle");
       s->sidebar_collapsed = true;
       s->scene.alert_size = cereal::ControlsState::AlertSize::NONE;
       s->vipc_client = s->scene.driver_view ? s->vipc_client_front : s->vipc_client_rear;
     } else {
       s->status = STATUS_OFFROAD;
-      s->active_app = cereal::UiLayoutState::App::HOME;
       s->sidebar_collapsed = false;
       s->sound->stop();
       s->vipc_client->connected = false;
