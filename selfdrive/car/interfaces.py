@@ -92,7 +92,7 @@ class CarInterfaceBase():
 
   def create_common_events(self, cs_out, extra_gears=[], gas_resume_speed=-1, pcm_enable=True):  # pylint: disable=dangerous-default-value
     events = Events()
-    self.disengage_on_gas = True
+    self.disengage_on_gas = False
     if cs_out.doorOpen:
       events.add(EventName.doorOpen)
     if cs_out.seatbeltUnlatched:
